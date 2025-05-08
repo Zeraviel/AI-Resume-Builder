@@ -5,7 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Sparkles, GripVertical, Trash2 } from "lucide-react";
+import {
+  PlusCircle,
+  Sparkles,
+  GripVertical,
+  Trash2,
+  FileText,
+} from "lucide-react";
+import AIAssistDialog from "./AIAssistDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -222,28 +229,56 @@ const ResumeEditor = ({ onUpdate = () => {} }: ResumeEditorProps) => {
     onUpdate(reorderedSections);
   };
 
-  const handleAIAssist = (sectionId: string, field?: string) => {
-    // This would be replaced with actual AI API call
-    console.log(
-      `Generating AI suggestions for section ${sectionId}, field ${field || "all"}`,
-    );
-
-    // Mock AI suggestion for demo purposes
+  const handleAIAssist = async (sectionId: string, field?: string) => {
     const section = sections.find((s) => s.id === sectionId);
     if (!section) return;
 
     let updatedSection = { ...section };
 
-    if (section.type === "summary") {
-      updatedSection.content = {
-        text: "Results-driven software engineer with 5+ years of experience developing scalable web applications. Proficient in React, TypeScript, and Node.js with a strong focus on creating responsive, user-friendly interfaces. Passionate about clean code and optimizing application performance.",
-      };
-    } else if (section.type === "experience" && section.content[0]) {
-      updatedSection.content[0].description =
-        "Led development of enterprise web applications using React and TypeScript. Implemented responsive design principles and optimized application performance, resulting in 40% faster load times. Collaborated with UX designers to improve user experience and accessibility.";
+    try {
+      if (section.type === "summary") {
+        // For summary, we'll use a pre-defined suggestion for now
+        updatedSection.content = {
+          text: "Results-driven software engineer with 5+ years of experience developing scalable web applications. Proficient in React, TypeScript, and Node.js with a strong focus on creating responsive, user-friendly interfaces. Passionate about clean code and optimizing application performance.",
+        };
+        handleSectionUpdate(updatedSection);
+      } else if (section.type === "experience") {
+        // For experience items, use the AIAssistDialog to generate bullet points
+        const expItem = section.content.find((item: any) => item.id === field);
+        if (expItem) {
+          // We'll handle this in the dialog component
+          // The dialog will be shown by the button click in the UI
+        }
+      }
+    } catch (error) {
+      console.error("Error generating AI suggestions:", error);
+      // In a real app, you would show an error message to the user
     }
+  };
 
-    handleSectionUpdate(updatedSection);
+  const handleApplySuggestion = (
+    sectionId: string,
+    field: string,
+    suggestion: string,
+  ) => {
+    const section = sections.find((s) => s.id === sectionId);
+    if (!section) return;
+
+    if (section.type === "experience") {
+      const updatedContent = section.content.map((item: any) =>
+        item.id === field ? { ...item, description: suggestion } : item,
+      );
+
+      handleSectionUpdate({
+        ...section,
+        content: updatedContent,
+      });
+    } else if (section.type === "summary") {
+      handleSectionUpdate({
+        ...section,
+        content: { text: suggestion },
+      });
+    }
   };
 
   const calculateCompletionPercentage = (currentSections: ResumeSection[]) => {
@@ -373,15 +408,27 @@ const ResumeEditor = ({ onUpdate = () => {} }: ResumeEditorProps) => {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor="summary">Professional Summary</Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleAIAssist(section.id)}
-                  className="flex items-center gap-1 text-xs"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  AI Assist
-                </Button>
+                <AIAssistDialog
+                  jobTitle={
+                    sections.find((s) => s.type === "personal")?.content
+                      ?.title || "Professional"
+                  }
+                  companyName="Your Company"
+                  currentDescription={section.content.text || ""}
+                  onSuggestionSelect={(suggestion) =>
+                    handleApplySuggestion(section.id, "", suggestion)
+                  }
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex items-center gap-1 text-xs"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      AI Assist
+                    </Button>
+                  }
+                />
               </div>
               <Textarea
                 id="summary"
@@ -529,15 +576,24 @@ const ResumeEditor = ({ onUpdate = () => {} }: ResumeEditorProps) => {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label htmlFor={`description-${exp.id}`}>Description</Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleAIAssist(section.id, exp.id)}
-                      className="flex items-center gap-1 text-xs"
-                    >
-                      <Sparkles className="h-3 w-3" />
-                      AI Assist
-                    </Button>
+                    <AIAssistDialog
+                      jobTitle={exp.title || ""}
+                      companyName={exp.company || ""}
+                      currentDescription={exp.description || ""}
+                      onSuggestionSelect={(suggestion) =>
+                        handleApplySuggestion(section.id, exp.id, suggestion)
+                      }
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex items-center gap-1 text-xs"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          AI Assist
+                        </Button>
+                      }
+                    />
                   </div>
                   <Textarea
                     id={`description-${exp.id}`}
